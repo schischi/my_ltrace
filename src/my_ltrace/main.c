@@ -1,9 +1,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "map.h"
+#include "proc.h"
 
 int main()
 {
+#if 0
     map_s *map = map_init(1);
     map_add(map, "foo", "foo");
     map_add(map, "bar", "bar");
@@ -12,5 +14,9 @@ int main()
     map_sort(map);
     map_print(map, NULL);
     map_free(map);
+#endif
+
+    proc_s *p = proc_open("my_ltrace");
+    (void)p;
     return 0;
 }
