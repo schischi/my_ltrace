@@ -1,0 +1,6 @@
+#! /bin/sh
+
+SYSCALLS_FILE=/usr/include/asm/unistd_64.h
+
+sed -n 's/#define __NR_\([a-z0-9)_]*\).\([0-9]*\)/X(\1, \2)/p' \
+    $SYSCALLS_FILE > syscalls.def
