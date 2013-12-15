@@ -1,5 +1,5 @@
 CC=clang
-CFLAGS=-Wall -Wextra -Werror -pedantic -std=c99 -g3 -I.
+CFLAGS=-Wall -Wextra -Werror -std=c99 -g3 -I.
 LDFLAGS=-lelf
 
 -include src/my_strace/strace.mk

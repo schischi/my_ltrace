@@ -22,6 +22,9 @@ void my_strace(pid_t child)
         if (syscall_wait(child))
             break;
         syscall_print(child);
+        if (syscall_wait(child))
+            break;
+        syscall_print_ret(child);
     }
 }
 
@@ -38,7 +41,6 @@ int main(int argc, char *argv[])
 
     if (child == 0) {
         ptrace(PTRACE_TRACEME);
-        kill(getpid(), SIGSTOP);
         return execvp(argv[1], argv + 1);
     }
     else {
