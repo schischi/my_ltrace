@@ -13,7 +13,7 @@ void my_log(e_log_level level, s_debug_info debug, char *fmt, ...)
     {
         fprintf(stdout, "%-17s", COLOR_BLUE"[INFO]"COLOR_RESET);
         vfprintf(stdout, fmt, ap);
-        fprintf(stdout, " at (%s:%d)\n", debug.file, debug.line);
+        fprintf(stdout, "\n");
     }
     else if (level == WARN)
     {

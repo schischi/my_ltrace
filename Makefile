@@ -18,6 +18,9 @@ my_ltrace: $(LTRACE_OBJS)
 my_strace: $(STRACE_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
+test:
+	LD_BIND_NOW=1 gcc tests/main.c
+
 clean:
 	rm -f $(LTRACE_OBJS)
 	rm -f $(STRACE_OBJS)

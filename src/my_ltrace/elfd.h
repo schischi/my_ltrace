@@ -8,9 +8,20 @@
 struct elf_info {
     Elf *elf;
     GElf_Ehdr hdr;
-    Elf_Data *symtab;
-    size_t symtab_size;
-    char *strtab;
+
+    GElf_Addr plt_addr;
+    size_t plt_count;
+
+    Elf_Data *replt;
+    size_t replt_count;
+
+    GElf_Addr gotplt_addr;
+    size_t gotplt_count;
+
+    Elf_Data *dynsym;
+    size_t dynsym_count;
+
+    const char *dynstr;
 };
 typedef struct elf_info elf_info_s;
 

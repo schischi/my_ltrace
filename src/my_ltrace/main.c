@@ -16,7 +16,7 @@ int main()
     map_free(map);
 #endif
 
-    proc_s *p = proc_open("my_ltrace");
+    proc_s *p = proc_open("a.out");
     (void)p;
     return 0;
 }
