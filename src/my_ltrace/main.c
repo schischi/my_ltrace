@@ -3,7 +3,7 @@
 #include "map.h"
 #include "proc.h"
 
-int main()
+int main(int argc, char *argv[])
 {
 #if 0
     map_s *map = map_init(1);
@@ -16,7 +16,9 @@ int main()
     map_free(map);
 #endif
 
-    proc_s *p = proc_open("a.out");
+    if (argc < 2)
+        return 1;
+    proc_s *p = proc_open(argv[1], argc - 2, &argv[2]);
     (void)p;
     return 0;
 }

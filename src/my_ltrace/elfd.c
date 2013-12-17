@@ -6,6 +6,7 @@
 #include <string.h>
 #include "elfd.h"
 #include "log.h"
+#include "br.h"
 
 static void handle_dynsym_section(elf_info_s *elf, Elf_Scn *scn, GElf_Shdr shdr)
 {
@@ -96,6 +97,7 @@ static void find_symbols(elf_info_s *elf)
         name = elf->dynstr + sym.st_name;
         addr = elf->plt_addr + (i + 1) * 16;
         LOG(INFO, "ADD %s at 0x%lx", name, addr);
+        breakpoint_create(addr, name);
     }
 }
 
