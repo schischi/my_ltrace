@@ -3,6 +3,7 @@
 
 # include <sys/types.h>
 # include <stdint.h>
+# include "map.h"
 
 struct breakpoint {
     void *addr;
@@ -11,7 +12,8 @@ struct breakpoint {
 };
 typedef struct breakpoint breakpoint_s;
 
-breakpoint_s *breakpoint_create(unsigned long addr, const char *name, pid_t pid);
-void breakpoint_resume(pid_t pid);
+void breakpoint_create(map_s *map, uint64_t addr, const char *name, pid_t pid);
+void breakpoint_resume(map_s *brkp, pid_t pid);
+void breakpoint_print(void *br);
 
 #endif /* !BR_H */

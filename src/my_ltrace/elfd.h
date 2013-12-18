@@ -5,6 +5,8 @@
 # include <gelf.h>
 # include <libelf.h>
 # include <sys/types.h>
+# include "proc.h"
+# include "map.h"
 
 struct elf_info {
     Elf *elf;
@@ -26,6 +28,6 @@ struct elf_info {
 };
 typedef struct elf_info elf_info_s;
 
-elf_info_s *elf_symbols(int fd, pid_t pid);
+map_s *elf_set_breakpoints(proc_s *proc);
 
 #endif /* !ELFD_H */

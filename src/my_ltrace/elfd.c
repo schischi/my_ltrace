@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "elfd.h"
+#include "map.h"
 #include "log.h"
 #include "br.h"
 
@@ -72,36 +73,7 @@ static void handle_gotplt_section(elf_info_s *elf, GElf_Shdr shdr)
     LOG(INFO, "Section gotplt at 0x%lx (%zu)", shdr.sh_addr, shdr.sh_size);
 }
 
-static void find_symbols(elf_info_s *elf, pid_t pid)
-{
-    for (size_t i = 0; i < elf->replt_count; ++i) {
-        void *ret;
-        GElf_Rel rel;
-        GElf_Rela rela;
-        const char *name;
-        GElf_Sym sym;
-        GElf_Addr addr;
-        /* local relocation entries */
-        if (elf->replt->d_type == ELF_T_REL) {
-            ret = gelf_getrel(elf->replt, i, &rel);
-            rela.r_offset = rel.r_offset;
-            rela.r_info = rel.r_info;
-            rela.r_addend = 0;
-        }
-        /* external relocation entries */
-        else
-            ret = gelf_getrela(elf->replt, i, &rela);
-
-        gelf_getsym(elf->dynsym, ELF64_R_SYM(rela.r_info), &sym);
-
-        name = elf->dynstr + sym.st_name;
-        addr = elf->plt_addr + (i + 1) * 16;
-        LOG(INFO, "ADD %s at 0x%lx", name, addr);
-        breakpoint_create(addr, name, pid);
-    }
-}
-
-elf_info_s *elf_symbols(int fd, pid_t pid)
+static elf_info_s *elf_symbols(int fd)
 {
     /* Open Elf */
     elf_version(EV_CURRENT);
@@ -130,6 +102,36 @@ elf_info_s *elf_symbols(int fd, pid_t pid)
         else if (!strcmp(name, ".got.plt"))
             handle_gotplt_section(elf, shdr);
     }
-    find_symbols(elf, pid);
     return elf;
+}
+
+map_s *elf_set_breakpoints(proc_s *proc)
+{
+    elf_info_s *elf = elf_symbols(proc->fd);
+    map_s *brkp = map_init(32, cmp_addr);
+    for (size_t i = 0; i < elf->replt_count; ++i) {
+        void *ret;
+        GElf_Rel rel;
+        GElf_Rela rela;
+        const char *name;
+        GElf_Sym sym;
+        GElf_Addr addr;
+        /* local relocation entries */
+        if (elf->replt->d_type == ELF_T_REL) {
+            ret = gelf_getrel(elf->replt, i, &rel);
+            rela.r_offset = rel.r_offset;
+            rela.r_info = rel.r_info;
+            rela.r_addend = 0;
+        }
+        /* external relocation entries */
+        else
+            ret = gelf_getrela(elf->replt, i, &rela);
+
+        gelf_getsym(elf->dynsym, ELF64_R_SYM(rela.r_info), &sym);
+
+        name = elf->dynstr + sym.st_name;
+        addr = elf->plt_addr + (i + 1) * 16;
+        breakpoint_create(brkp, addr, name, proc->pid);
+    }
+    return brkp;
 }
