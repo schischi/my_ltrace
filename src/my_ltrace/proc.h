@@ -13,6 +13,6 @@ struct proc {
 };
 typedef struct proc proc_s;
 
-proc_s *proc_open(const char *name, int argc, char *argv[]);
+proc_s *proc_open(char *argv[]);
 
 #endif /* !PROC_H */

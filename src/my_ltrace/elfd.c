@@ -72,7 +72,7 @@ static void handle_gotplt_section(elf_info_s *elf, GElf_Shdr shdr)
     LOG(INFO, "Section gotplt at 0x%lx (%zu)", shdr.sh_addr, shdr.sh_size);
 }
 
-static void find_symbols(elf_info_s *elf)
+static void find_symbols(elf_info_s *elf, pid_t pid)
 {
     for (size_t i = 0; i < elf->replt_count; ++i) {
         void *ret;
@@ -97,11 +97,11 @@ static void find_symbols(elf_info_s *elf)
         name = elf->dynstr + sym.st_name;
         addr = elf->plt_addr + (i + 1) * 16;
         LOG(INFO, "ADD %s at 0x%lx", name, addr);
-        breakpoint_create(addr, name);
+        breakpoint_create(addr, name, pid);
     }
 }
 
-elf_info_s *elf_symbols(int fd)
+elf_info_s *elf_symbols(int fd, pid_t pid)
 {
     /* Open Elf */
     elf_version(EV_CURRENT);
@@ -130,6 +130,6 @@ elf_info_s *elf_symbols(int fd)
         else if (!strcmp(name, ".got.plt"))
             handle_gotplt_section(elf, shdr);
     }
-    find_symbols(elf);
+    find_symbols(elf, pid);
     return elf;
 }

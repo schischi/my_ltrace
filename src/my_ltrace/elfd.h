@@ -4,6 +4,7 @@
 # include <elf.h>
 # include <gelf.h>
 # include <libelf.h>
+# include <sys/types.h>
 
 struct elf_info {
     Elf *elf;
@@ -25,6 +26,6 @@ struct elf_info {
 };
 typedef struct elf_info elf_info_s;
 
-elf_info_s *elf_symbols(int fd);
+elf_info_s *elf_symbols(int fd, pid_t pid);
 
 #endif /* !ELFD_H */
