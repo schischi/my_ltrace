@@ -54,36 +54,31 @@ void breakpoint_resume(map_s *brkp, pid_t pid)
     struct user_regs_struct regs;
     ptrace(PTRACE_GETREGS, pid, 0, &regs);
     uint64_t rip = get_child_eip(pid);
-    uint64_t in_g = 0;
-    void *a_g = NULL;
 
     breakpoint_s *b = map_get(brkp, (void*)(uintptr_t)(rip - 1));
     if (b == NULL) {
         LOG(INFO, "Unknow TRAP", NULL);
         return;
     }
-    a_g = b->addr;
-    in_g = b->old_instr;
     LOG(INFO, "TRAP, RIP=0x%lx, name = \"%s\"", rip, b->name);
 
     /* restore instruction */
-    uint64_t data = ptrace(PTRACE_PEEKTEXT, pid, a_g, 0);
-    //if ((data & 0xFF) != 0xCC) {
-    //    ptrace(PTRACE_CONT, pid, 0, 0);
-    //    return;
-    //}
-    //assert((data & 0xFF) == 0xCC);
-    ptrace(PTRACE_POKETEXT, pid, a_g, (data & 0xFFFFFFFFFFFFFF00) | (in_g & 0xFF));
-    /* set EIP, 1 instruction ago*/
-    regs.rip = (unsigned long)a_g;
+    uint64_t data = ptrace(PTRACE_PEEKTEXT, pid, b->addr, 0);
+    ptrace(PTRACE_POKETEXT, pid, b->addr,
+            (data & UINT64_MAX - UINT8_MAX) | (b->old_instr & 0xFF));
+    /* set EIP, 1 instruction ago */
+    regs.rip = (unsigned long)b->addr;
     ptrace(PTRACE_SETREGS, pid, 0, &regs);
 
-    //for (int i = 0; i < 10; ++i) {
-    //    ptrace(PTRACE_SINGLESTEP, pid, 0, 0);
-    //    int stat;
-    //    wait(&stat);
-    //    LOG(INFO, "EIP = 0x%lx", get_child_eip(pid));
-    //}
+    /* exec the instruction */
+    int stat;
+    ptrace(PTRACE_SINGLESTEP, pid, 0, 0);
+    wait(&stat);
+
+    /* set the breakpoint again */
+    ptrace(PTRACE_POKETEXT, pid, b->addr,
+            (b->old_instr & (UINT64_MAX - UINT8_MAX)) | 0xCC);
+    LOG(INFO, "EIP = 0x%lx", get_child_eip(pid));
     ptrace(PTRACE_CONT, pid, 0, 0);
 }
 
