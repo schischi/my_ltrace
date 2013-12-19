@@ -1,9 +1,11 @@
+#define _POSIX_SOURCE
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/ptrace.h>
 #include <sys/fcntl.h>
+#include <signal.h>
 #include "proc.h"
 #include "log.h"
 #include "br.h"
@@ -31,12 +33,44 @@ static pid_t proc_exec(char *argv[])
 #include <stdio.h>
 void proc_trace(map_s *brkp, proc_s *proc)
 {
-    ptrace(PTRACE_CONT, proc->pid, 0, 0);
+    ptrace(PTRACE_SETOPTIONS, proc->pid, 0, PTRACE_O_TRACESYSGOOD
+            | PTRACE_O_TRACEFORK |  PTRACE_O_TRACECLONE);
+    //ptrace(PTRACE_SETOPTIONS, proc->pid, 0, PTRACE_O_TRACESYSGOOD);
+
+    //ptrace(PTRACE_CONT, proc->pid, 0, 0);
+    ptrace(PTRACE_SYSCALL, proc->pid, 0, 0);
     int status = 0;
     while (1) {
         waitpid(proc->pid, &status, 0);
-        if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP)
-            breakpoint_resume(brkp, proc->pid);
+        if (status>>8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))
+            || status>>8 == (SIGTRAP | (PTRACE_EVENT_CLONE<<8))) {
+            unsigned long data;
+            ptrace(PTRACE_GETEVENTMSG, proc->pid, NULL, &data);
+            LOG(WARN, "Fork to %d", data);
+            int s;
+            while (1) {
+                waitpid(data, &s, 0);
+                if (WIFEXITED(s))
+                    break;
+                ptrace(PTRACE_SYSCALL, data, 0, 0);
+            }
+            LOG(WARN, "Fork exit", NULL);
+            //ptrace(PTRACE_SYSCALL, data, 0, 0);
+            //kill(data, SIGSTOP);
+            //ptrace(PTRACE_DETACH, data, 0, 0);
+            ptrace(PTRACE_SYSCALL, proc->pid, 0, 0);
+        }
+        else if (WIFSTOPPED(status) && WSTOPSIG(status) == (SIGTRAP | 0x80)) {
+            struct user_regs_struct uregs;
+            ptrace(PTRACE_GETREGS, proc->pid, 0, &uregs);
+            LOG(INFO, "Syscall %d", uregs.orig_rax);
+            //ptrace(PTRACE_SYSCALL, proc->pid, 0, 0);
+            //wait(&status);
+            ptrace(PTRACE_SYSCALL, proc->pid, 0, 0);
+        }
+        else if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP) {
+            breakpoint_resume(brkp, proc->pid, status);
+        }
         else if (WIFEXITED(status))
             return;
     }

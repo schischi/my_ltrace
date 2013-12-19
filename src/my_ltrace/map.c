@@ -62,7 +62,7 @@ void *map_get(map_s *map, const char *key)
     if (map->ordered == 0)
         map_sort(map);
     int min = 0;
-    int max = map->count;
+    int max = map->count - 1;
     while (min <= max) {
         int mid = (min + max) / 2;
         int ret = cmp_addr_with(map->array[mid]->key, key);
