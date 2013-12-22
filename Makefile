@@ -21,6 +21,7 @@ my_strace: $(STRACE_OBJS)
 test:
 	$(CC) tests/main.c -o tests/simple
 	$(CC) tests/fork.c -o tests/fork
+	$(CC) tests/loop.c -o tests/loop
 
 clean:
 	rm -f $(LTRACE_OBJS)
@@ -29,6 +30,10 @@ clean:
 	rm -f my_strace
 	rm -f tests/fork
 	rm -f tests/simple
+	rm -f tests/loop
 
 distclean:
 	rm -rf syscalls.def
+
+kern_conf:
+	echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope

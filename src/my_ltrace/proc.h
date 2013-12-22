@@ -15,6 +15,7 @@ struct proc {
 typedef struct proc proc_s;
 
 proc_s *proc_open(char *argv[]);
+proc_s *proc_attach(int pid);
 void proc_trace(map_s *brkp, proc_s *proc);
 
 #endif /* !PROC_H */

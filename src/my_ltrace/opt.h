@@ -5,6 +5,7 @@ struct opt {
     int rip;
     int follow;
     char **prog_argv;
+    int pid;
 };
 typedef struct opt opt_s;
 
