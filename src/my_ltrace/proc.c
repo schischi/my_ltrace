@@ -1,5 +1,6 @@
 #define _POSIX_SOURCE
 #include <stdlib.h>
+#include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -30,20 +31,17 @@ static pid_t proc_exec(char *argv[])
     return pid;
 }
 
-#include <stdio.h>
 void proc_trace(map_s *brkp, proc_s *proc)
 {
     ptrace(PTRACE_SETOPTIONS, proc->pid, 0, PTRACE_O_TRACESYSGOOD
-            | PTRACE_O_TRACEFORK |  PTRACE_O_TRACECLONE);
-    //ptrace(PTRACE_SETOPTIONS, proc->pid, 0, PTRACE_O_TRACESYSGOOD);
-
-    //ptrace(PTRACE_CONT, proc->pid, 0, 0);
+           | PTRACE_O_TRACEFORK |  PTRACE_O_TRACECLONE);
     ptrace(PTRACE_SYSCALL, proc->pid, 0, 0);
+
     int status = 0;
     while (1) {
         waitpid(proc->pid, &status, 0);
-        if (status>>8 == (SIGTRAP | (PTRACE_EVENT_FORK<<8))
-            || status>>8 == (SIGTRAP | (PTRACE_EVENT_CLONE<<8))) {
+        if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK << 8))
+            || status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) {
             unsigned long data;
             ptrace(PTRACE_GETEVENTMSG, proc->pid, NULL, &data);
             LOG(WARN, "Fork to %d", data);
@@ -63,7 +61,7 @@ void proc_trace(map_s *brkp, proc_s *proc)
         else if (WIFSTOPPED(status) && WSTOPSIG(status) == (SIGTRAP | 0x80)) {
             struct user_regs_struct uregs;
             ptrace(PTRACE_GETREGS, proc->pid, 0, &uregs);
-            LOG(INFO, "Syscall %d", uregs.orig_rax);
+            //LOG(INFO, "Syscall %d", uregs.orig_rax);
             //ptrace(PTRACE_SYSCALL, proc->pid, 0, 0);
             //wait(&status);
             ptrace(PTRACE_SYSCALL, proc->pid, 0, 0);

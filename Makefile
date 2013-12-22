@@ -1,5 +1,5 @@
 CC=clang
-CFLAGS=-Wall -Wextra -Werror -std=c99 -g3 -I.
+CFLAGS=-Wall -Wextra -Werror -std=c99 -I.
 LDFLAGS=-lelf
 
 -include src/my_strace/strace.mk
@@ -19,11 +19,16 @@ my_strace: $(STRACE_OBJS)
 	$(CC) $(CFLAGS) -o $@ $^
 
 test:
-	LD_BIND_NOW=1 gcc tests/main.c
+	$(CC) tests/main.c -o tests/simple
+	$(CC) tests/fork.c -o tests/fork
 
 clean:
 	rm -f $(LTRACE_OBJS)
 	rm -f $(STRACE_OBJS)
 	rm -f my_ltrace
 	rm -f my_strace
-	rm -f syscalls.def
+	rm -f tests/fork
+	rm -f tests/simple
+
+distclean:
+	rm -rf syscalls.def

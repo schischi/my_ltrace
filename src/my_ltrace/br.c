@@ -8,6 +8,9 @@
 #include "map.h"
 #include "log.h"
 #include "br.h"
+#include "opt.h"
+
+extern opt_s opts_g;
 
 #include <stdio.h>
 void dump_memory(pid_t pid, unsigned long from, unsigned long to)
@@ -26,28 +29,41 @@ void breakpoint_create(map_s *map, uint64_t addr, const char *name, pid_t pid)
     bp->name = name;
     bp->old_instr = 0;
     //if (!strcmp("puts", name))
-        return;
+    //    return;
 
     /* save current instruction */
     bp->old_instr = ptrace(PTRACE_PEEKTEXT, pid, addr, 0);
-    LOG(INFO, "Save 0x%lx", bp->old_instr);
     /* replace current instruction with a breakpoint */
     ptrace(PTRACE_POKETEXT, pid, addr,
             (bp->old_instr & (UINT64_MAX - UINT8_MAX)) | 0xCC);
-    LOG(INFO, "Instr is 0x%lx", bp->old_instr & (UINT64_MAX - UINT8_MAX) | 0xCC);
-
-    LOG(INFO, "Breakpoint at %p (%s)", bp->addr, bp->name);
     map_add(map, bp, bp->addr);
 }
 
 static long get_child_eip(pid_t pid)
 {
-    struct user_regs_struct regs;
-    ptrace(PTRACE_GETREGS, pid, 0, &regs);
-    return regs.rip;
+    return ptrace(PTRACE_PEEKUSER, pid, (long)(&((struct user *)0)->regs.rip));
 }
-#include <assert.h>
-#define print_eip() fprintf(stderr, "EIP = 0x%lx\n", get_child_eip(pid))
+
+#include <sys/reg.h>
+static long get_child_rax(pid_t pid)
+{
+    //return ptrace(PTRACE_PEEKUSER, pid, (long)(&((struct user *)0)->regs.rax));
+    return ptrace(PTRACE_PEEKUSER, pid, 8 * RAX, 0);
+}
+
+#include <execinfo.h>
+#include <unistd.h>
+void print_backtrace()
+{
+    void *array[10];
+    size_t size;
+
+    // get void*'s for all entries on the stack
+    size = backtrace(array, 10);
+
+    // print out all the frames to stderr
+    backtrace_symbols_fd(array, size, STDERR_FILENO);
+}
 
 void breakpoint_resume(map_s *brkp, pid_t pid, int status)
 {
@@ -61,7 +77,9 @@ void breakpoint_resume(map_s *brkp, pid_t pid, int status)
         ptrace(PTRACE_CONT, pid, 0, 0);
         return;
     }
-    LOG(INFO, "TRAP, RIP=0x%lx, name = \"%s\"", rip, b->name);
+    if (opts_g.rip)
+        printf("[0x%lx] ", get_child_eip(pid));
+    printf("%s() =", b->name);
 
     /* restore instruction */
     uint64_t data = ptrace(PTRACE_PEEKTEXT, pid, b->addr, 0);
@@ -75,16 +93,16 @@ void breakpoint_resume(map_s *brkp, pid_t pid, int status)
     int stat;
     ptrace(PTRACE_SINGLESTEP, pid, 0, 0);
     wait(&stat);
+    printf(" %ld\n", get_child_rax(pid));
 
     /* set the breakpoint again */
     ptrace(PTRACE_POKETEXT, pid, b->addr,
             (b->old_instr & (UINT64_MAX - UINT8_MAX)) | 0xCC);
-    LOG(INFO, "EIP = 0x%lx", get_child_eip(pid));
     ptrace(PTRACE_SYSCALL, pid, 0, 0);
 }
 
 void breakpoint_print(void *br)
 {
     breakpoint_s *b = br;
-    LOG(INFO, "Breakpoints \"%s\" at %p", b->name, b->addr);
+    printf("Breakpoints \"%s\" at %p\n", b->name, b->addr);
 }

@@ -3,4 +3,5 @@ LTRACE_FILES=log.c         \
 			 map.c         \
 			 proc.c        \
 			 br.c          \
+			 opt.c         \
 			 elfd.c
