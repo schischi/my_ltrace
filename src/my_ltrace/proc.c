@@ -15,8 +15,10 @@
 #include "proc.h"
 #include "log.h"
 #include "br.h"
+#include "opt.h"
 
 static volatile int quit = 0;
+extern opt_s opts_g;
 
 static void sigint_handler(int sig)
 {
@@ -44,9 +46,10 @@ void proc_trace(map_s *brkp, proc_s *proc)
 {
     signal(SIGINT, sigint_handler);
     signal(SIGQUIT, sigint_handler);
-    ptrace(PTRACE_SETOPTIONS, proc->pid, 0, PTRACE_O_TRACESYSGOOD
-                                          | PTRACE_O_TRACEFORK
-                                          | PTRACE_O_TRACECLONE);
+    long options = PTRACE_O_TRACESYSGOOD;
+    if (opts_g.follow)
+        options |= PTRACE_O_TRACEFORK + PTRACE_O_TRACECLONE;
+    ptrace(PTRACE_SETOPTIONS, proc->pid, 0, options);
     ptrace(PTRACE_SYSCALL, proc->pid, 0, 0);
 
     int status = 0;
