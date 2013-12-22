@@ -30,8 +30,6 @@ void breakpoint_create(map_s *map, uint64_t addr, const char *name, pid_t pid)
     bp->addr = (void *)addr;
     bp->name = name;
     bp->old_instr = 0;
-    //if (!strcmp("puts", name))
-    //    return;
 
     /* save current instruction */
     bp->old_instr = ptrace(PTRACE_PEEKTEXT, pid, addr, 0);
