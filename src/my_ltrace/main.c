@@ -24,7 +24,6 @@ int main(int argc, char *argv[])
     map_sort(brkp);
     map_print(brkp, breakpoint_print);
     proc_trace(brkp, p);
-    if (opts_g.pid != 0)
-        ptrace(PTRACE_DETACH, opts_g.pid, NULL, NULL);
+    proc_close(p, opts_g.pid);
     return 0;
 }

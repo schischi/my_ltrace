@@ -9,12 +9,20 @@
 #include <sys/fcntl.h>
 #include <signal.h>
 #include <limits.h>
+#include <sys/reg.h>
+#include <sys/user.h>
+
 #include "proc.h"
 #include "log.h"
 #include "br.h"
 
-#include <sys/reg.h>
-#include <sys/user.h>
+static volatile int quit = 0;
+
+static void sigint_handler(int sig)
+{
+    (void)sig;
+    quit = 1;
+}
 
 static pid_t proc_exec(char *argv[])
 {
@@ -27,22 +35,24 @@ static pid_t proc_exec(char *argv[])
     if (pid == 0) {
         ptrace(PTRACE_TRACEME);
         execvp(argv[0], argv);
-        LOG(WARN, "Child", NULL);
     }
-    waitpid(pid, (int[]){0}, 0);
+    waitpid(pid, NULL, 0);
     return pid;
 }
 
 void proc_trace(map_s *brkp, proc_s *proc)
 {
-    LOG(INFO, "Trace %d", proc->pid);
+    signal(SIGINT, sigint_handler);
+    signal(SIGQUIT, sigint_handler);
     ptrace(PTRACE_SETOPTIONS, proc->pid, 0, PTRACE_O_TRACESYSGOOD
-           | PTRACE_O_TRACEFORK |  PTRACE_O_TRACECLONE);
+                                          | PTRACE_O_TRACEFORK
+                                          | PTRACE_O_TRACECLONE);
     ptrace(PTRACE_SYSCALL, proc->pid, 0, 0);
 
     int status = 0;
-    while (1) {
+    while (quit == 0) {
         waitpid(proc->pid, &status, 0);
+        /* handle fork, clone, ... */
         if (status >> 8 == (SIGTRAP | (PTRACE_EVENT_FORK << 8))
             || status >> 8 == (SIGTRAP | (PTRACE_EVENT_CLONE << 8))) {
             unsigned long data;
@@ -58,15 +68,16 @@ void proc_trace(map_s *brkp, proc_s *proc)
             LOG(WARN, "Fork exit", NULL);
             ptrace(PTRACE_SYSCALL, proc->pid, 0, 0);
         }
+        /* handle syscalls */
         else if (WIFSTOPPED(status) && WSTOPSIG(status) == (SIGTRAP | 0x80)) {
             struct user_regs_struct uregs;
             ptrace(PTRACE_GETREGS, proc->pid, 0, &uregs);
             //LOG(INFO, "Syscall %d", uregs.orig_rax);
             ptrace(PTRACE_SYSCALL, proc->pid, 0, 0);
         }
-        else if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP) {
-            breakpoint_resume(brkp, proc->pid, status);
-        }
+        /* handle breakpoints */
+        else if (WIFSTOPPED(status) && WSTOPSIG(status) == SIGTRAP)
+            breakpoint_resume(brkp, proc->pid);
         else if (WIFEXITED(status)) {
             printf("Exited\n");
             return;
@@ -79,39 +90,50 @@ proc_s *proc_open(char *argv[])
     proc_s *p = malloc(sizeof (proc_s));
     p->name = argv[0];
     p->argv = argv;
-    p->fd = open(argv[0], O_RDONLY);
     p->pid = proc_exec(p->argv);
+    p->fd = open(argv[0], O_RDONLY);
     if (p->fd == -1)
-        LOG(ERROR, "Fail to open %s\n", argv[0]);
+        LOG(ERROR, "Unable to open %s\n", argv[0]);
     return p;
 }
 
 proc_s *proc_attach(int pid)
 {
     proc_s *p = malloc(sizeof (proc_s));
-    if (kill(pid, 0)) {
-        LOG(ERROR, "Fail to attach to %d\n", pid);
-        exit(1);
-    }
+    if (kill(pid, 0))
+        goto error_1;
     char buf[PATH_MAX];
-    snprintf(buf, 128, "/proc/%d/exe", pid);
-    if (access(buf, F_OK)) {
-        LOG(ERROR, "Fail to retrieve the exe of %d\n", pid);
-        exit(1);
-    }
+    snprintf(buf, PATH_MAX, "/proc/%d/exe", pid);
+    if (access(buf, F_OK))
+        goto error_1;
     p->name = strdup(buf);
     p->argv = NULL;
     p->fd = open(p->name, O_RDONLY);
     p->pid = pid;
-    if (p->fd == -1) {
-        LOG(ERROR, "Fail to open %s\n", p->name);
-        exit(1);
-    }
-    if (ptrace(PTRACE_ATTACH, pid, NULL, NULL)) {
-        LOG(ERROR, "Failed to attach to %d", pid);
-        exit(1);
-    }
-    //kill(pid, SIGSTOP);
-    waitpid(pid, (int[]){0}, 0);
+    if (p->fd == -1)
+        goto error_1;
+    if (ptrace(PTRACE_ATTACH, pid, NULL, NULL))
+        goto error_2;
+    waitpid(pid, NULL, 0);
     return p;
+
+error_2:
+    close(p->fd);
+error_1:
+    free(p);
+    LOG(ERROR, "Unable to attach to %d", pid);
+    return NULL;
+}
+
+void proc_close(proc_s *proc, int pid)
+{
+    if (pid != 0) {
+        waitpid(proc->pid, NULL, 0);
+        if (ptrace(PTRACE_DETACH, pid, NULL, NULL)) {
+            LOG(ERROR, "Unable to detach from %d", pid);
+        }
+        printf("Detached from %d\n", pid);
+    }
+    close(proc->fd);
+    free(proc);
 }

@@ -29,6 +29,7 @@ void my_log(e_log_level level, s_debug_info debug, char *fmt, ...)
         fprintf(stderr, " at (%s:%d)\n", debug.file, debug.line);
         if (err)
             fprintf(stderr, "\t%s\n", strerror(errno));
+        exit(1);
     }
     va_end(ap);
 }
