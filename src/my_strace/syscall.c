@@ -62,11 +62,11 @@ static void special_print(pid_t child, unsigned long num, size_t n)
     unsigned i = 0;
     printf("%s (", syscalls[num]);
     do {
-#define X(Reg)                                                              \
-    if (syscall_def[n].count > i)                                         \
-        type_print(child, register_get(child, Reg), syscall_def[n].argv[i]);     \
-    else                                                                    \
-        break;                                                              \
+#define X(Reg)                                                               \
+    if (syscall_def[n].count > i)                                            \
+        type_print(child, register_get(child, Reg), syscall_def[n].argv[i]); \
+    else                                                                     \
+        break;                                                               \
     ++i;
 #include "calling_conventions.def"
 #undef X
